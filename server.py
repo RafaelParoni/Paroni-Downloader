@@ -10,7 +10,7 @@ from http.server import HTTPServer, ThreadingHTTPServer, SimpleHTTPRequestHandle
 # Import modular downloader core engine
 from downloader_core import ConfigManager, engine_instance, SERVICES_METADATA
 
-PORT = 3000
+PORT = 4000
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
 
 def get_local_ip():
