@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 import socket
 import urllib.parse
@@ -95,16 +96,46 @@ class ParoniDownloaderHTTPRequestHandler(SimpleHTTPRequestHandler):
             return
 
         elif path.startswith("/api/files/"):
-            filename = urllib.parse.unquote(path.replace("/api/files/", ""))
+            raw_filename = path[len("/api/files/"):]
+            filename = os.path.basename(urllib.parse.unquote_plus(raw_filename))
+
             temp_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp")
-            file_path = os.path.join(temp_folder, filename)
+            config = ConfigManager.load_config()
+            download_folder = config.get("download_folder", ConfigManager.get_default_download_folder())
+            search_folders = [temp_folder]
+            if download_folder != temp_folder and os.path.exists(download_folder):
+                search_folders.append(download_folder)
 
-            if not os.path.isfile(file_path):
-                config = ConfigManager.load_config()
-                download_folder = config.get("download_folder", ConfigManager.get_default_download_folder())
-                file_path = os.path.join(download_folder, filename)
+            file_path = None
+            # 1. Exact match
+            for folder in search_folders:
+                candidate = os.path.join(folder, filename)
+                if os.path.isfile(candidate):
+                    file_path = candidate
+                    break
 
-            if not os.path.isfile(file_path):
+            # 2. Smart fallback if exact match fails (e.g. extension mismatch or search prefix)
+            if not file_path:
+                base_name, _ = os.path.splitext(filename)
+                clean_base = re.sub(r' - (?:audio|vídeo|video e audio).*$', '', base_name, flags=re.IGNORECASE).strip()
+                for folder in search_folders:
+                    if not os.path.exists(folder):
+                        continue
+                    try:
+                        folder_files = os.listdir(folder)
+                    except Exception:
+                        continue
+                    for f in folder_files:
+                        f_base, _ = os.path.splitext(f)
+                        if f_base == base_name or f_base == clean_base or f.startswith(clean_base):
+                            full_f = os.path.join(folder, f)
+                            if os.path.isfile(full_f):
+                                file_path = full_f
+                                break
+                    if file_path:
+                        break
+
+            if not file_path or not os.path.isfile(file_path):
                 self._send_error_json("Arquivo não encontrado ou já expirou do servidor (deletado após 5 min).", 404)
                 return
 
@@ -113,19 +144,25 @@ class ParoniDownloaderHTTPRequestHandler(SimpleHTTPRequestHandler):
             file_size = os.path.getsize(file_path)
 
             file_name = os.path.basename(file_path)
-            encoded_filename = urllib.parse.quote(file_name)
+            encoded_filename = urllib.parse.quote(file_name, safe='')
             ext = os.path.splitext(file_name)[1] or ".mp4"
+            clean_ascii_name = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', file_name)
+            if not clean_ascii_name or clean_ascii_name.startswith('.'):
+                clean_ascii_name = f"download{ext}"
 
             self.send_response(200)
             self.send_header('Content-Type', mime_type)
             self.send_header('Content-Length', str(file_size))
-            self.send_header('Content-Disposition', f"attachment; filename=\"download{ext}\"; filename*=UTF-8''{encoded_filename}")
+            self.send_header('Content-Disposition', f'attachment; filename="{clean_ascii_name}"; filename*=UTF-8\'\'{encoded_filename}')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
 
-            with open(file_path, 'rb') as f:
-                while chunk := f.read(65536):
-                    self.wfile.write(chunk)
+            try:
+                with open(file_path, 'rb') as f:
+                    while chunk := f.read(65536):
+                        self.wfile.write(chunk)
+            except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+                pass
             return
 
         # Serve static web frontend files (index.html, styles.css, app.js)

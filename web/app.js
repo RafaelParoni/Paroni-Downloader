@@ -334,9 +334,15 @@ function setupEventListeners() {
         try {
             const text = await navigator.clipboard.readText();
             document.getElementById("url-input").value = text;
+            detectAndSwitchService(text);
         } catch (err) {
             console.error("Clipboard paste error:", err);
         }
+    });
+
+    // Auto-detect service from pasted/typed URL
+    document.getElementById("url-input").addEventListener("input", (e) => {
+        detectAndSwitchService(e.target.value);
     });
 
     // Download Button
@@ -425,6 +431,31 @@ function renderSidebarShortcuts() {
     // Highlight first shortcut
     const firstBtn = container.querySelector(".nav-btn");
     if (firstBtn) firstBtn.classList.add("active");
+}
+
+function detectAndSwitchService(url) {
+    if (!url || typeof url !== "string") return;
+    const lower = url.trim().toLowerCase();
+    let matched = null;
+    if (lower.includes("spotify")) matched = "spotify";
+    else if (lower.includes("tiktok")) matched = "tiktok";
+    else if (lower.includes("instagram")) matched = "instagram";
+    else if (lower.includes("twitter") || lower.includes("x.com")) matched = "twitter";
+    else if (lower.includes("reddit")) matched = "reddit";
+    else if (lower.includes("pinterest")) matched = "pinterest";
+    else if (lower.includes("facebook") || lower.includes("fb.watch")) matched = "facebook";
+    else if (lower.includes("kwai")) matched = "kwai";
+    else if (lower.includes("vimeo")) matched = "vimeo";
+    else if (lower.includes("twitch")) matched = "twitch";
+    else if (lower.includes("soundcloud")) matched = "soundcloud";
+    else if (lower.includes("bandcamp")) matched = "bandcamp";
+    else if (lower.includes("rumble")) matched = "rumble";
+    else if (lower.includes("bilibili")) matched = "bilibili";
+    else if (lower.includes("youtube") || lower.includes("youtu.be")) matched = "youtube";
+
+    if (matched && matched !== activeService) {
+        selectService(matched);
+    }
 }
 
 function selectService(serviceId) {

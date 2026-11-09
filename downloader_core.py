@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import html
 import urllib.request
 import urllib.error
 import threading
@@ -616,10 +617,10 @@ class MediaDownloaderEngine:
                 job.status_message = t.get("extracting", "Extraindo informações do Spotify...")
                 try:
                     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                    html = urllib.request.urlopen(req).read().decode('utf-8')
-                    match = re.search(r'<title>(.*?)</title>', html)
+                    html_text = urllib.request.urlopen(req).read().decode('utf-8')
+                    match = re.search(r'<title>(.*?)</title>', html_text)
                     if match:
-                        full_title = match.group(1)
+                        full_title = html.unescape(match.group(1))
                         clean_title = full_title.replace(" | Spotify", "").replace("- song and lyrics by", "").replace("- song by", "")
                         job.status_message = t.get("found", "Encontrado: {}").format(clean_title)
                         url = f"ytsearch1:{clean_title}"
@@ -658,6 +659,10 @@ class MediaDownloaderEngine:
                 'windowsfilenames': True
             }
 
+            # If the service only provides audio (Spotify, SoundCloud, Bandcamp), ensure audio_only
+            if job.service in ["Spotify", "SoundCloud", "Bandcamp"] and job.download_type == "video_audio":
+                job.download_type = "audio_only"
+
             # Format options
             dtype = job.download_type
             if dtype == "audio_only" or dtype == t.get("audio_only") or dtype == "Apenas Áudio" or dtype == "Audio Only":
@@ -689,31 +694,83 @@ class MediaDownloaderEngine:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=True)
 
+            target_info = info
+            if info and 'entries' in info and len(info['entries']) > 0:
+                target_info = info['entries'][0]
+
             title = "Arquivo Baixado"
             duration_str = ""
-            if info:
-                if 'entries' in info and len(info['entries']) > 0:
-                    entry = info['entries'][0]
-                    title = entry.get('title', 'Arquivo Baixado')
-                    duration_sec = entry.get('duration', 0)
-                else:
-                    title = info.get('title', 'Arquivo Baixado')
-                    duration_sec = info.get('duration', 0)
-                
+            if target_info:
+                title = target_info.get('title', 'Arquivo Baixado')
+                duration_sec = target_info.get('duration', 0)
                 if duration_sec:
                     m, s = divmod(int(duration_sec), 60)
                     h, m = divmod(m, 60)
                     duration_str = f"{h}:{m:02d}:{s:02d}" if h > 0 else f"{m}:{s:02d}"
 
             final_path = ""
-            if info and 'requested_downloads' in info and len(info['requested_downloads']) > 0:
-                final_path = info['requested_downloads'][0].get('filepath', '')
-            if not final_path and info and '_filename' in info:
-                final_path = info['_filename']
-            if not final_path:
-                final_path = os.path.join(download_folder, f"{title}.mp4")
+            # Step 1: Check requested_downloads and filepath/_filename in target_info and root info
+            for node in [target_info, info]:
+                if not node:
+                    continue
+                for req in node.get('requested_downloads', []):
+                    fp = req.get('filepath') or req.get('_filename')
+                    if fp and os.path.isfile(fp):
+                        final_path = fp
+                        break
+                if final_path:
+                    break
+                fp = node.get('filepath') or node.get('_filename')
+                if fp and os.path.isfile(fp):
+                    final_path = fp
+                    break
 
-            job.filename = title
+            # Step 2: Check candidate paths with converted extensions (e.g. .mp3, .mp4)
+            if not final_path or not os.path.isfile(final_path):
+                candidates = []
+                for node in [target_info, info]:
+                    if not node:
+                        continue
+                    for req in node.get('requested_downloads', []):
+                        if req.get('filepath'): candidates.append(req['filepath'])
+                        if req.get('_filename'): candidates.append(req['_filename'])
+                    if node.get('filepath'): candidates.append(node['filepath'])
+                    if node.get('_filename'): candidates.append(node['_filename'])
+
+                for cand in candidates:
+                    if cand:
+                        base_no_ext = os.path.splitext(cand)[0]
+                        for test_ext in ['.mp3', '.m4a', '.mp4', '.opus', '.webm', '.mkv', '.ogg', '.wav', '.flac']:
+                            candidate_path = base_no_ext + test_ext
+                            if os.path.isfile(candidate_path):
+                                final_path = candidate_path
+                                break
+                    if final_path and os.path.isfile(final_path):
+                        break
+
+            # Step 3: Scan download_folder for files modified since download job started
+            if not final_path or not os.path.isfile(final_path):
+                recent_files = []
+                try:
+                    for fname in os.listdir(download_folder):
+                        full_p = os.path.join(download_folder, fname)
+                        if os.path.isfile(full_p):
+                            mtime = os.path.getmtime(full_p)
+                            if mtime >= (job.start_time - 10):
+                                recent_files.append((mtime, full_p))
+                    if recent_files:
+                        recent_files.sort(key=lambda x: x[0], reverse=True)
+                        final_path = recent_files[0][1]
+                except Exception as err:
+                    print(f"[Engine] Error scanning download folder: {err}")
+
+            # Step 4: Fallback to expected filename if still not found
+            if not final_path:
+                ext = ".mp3" if job.download_type in ["audio_only", "Apenas Áudio", "Audio Only"] else ".mp4"
+                final_path = os.path.join(download_folder, f"{title}{ext}")
+
+            real_filename = os.path.basename(final_path)
+            job.filename = real_filename
             job.final_path = final_path
             job.duration = duration_str
             job.progress = 1.0

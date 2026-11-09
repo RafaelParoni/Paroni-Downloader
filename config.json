@@ -8,8 +8,58 @@
         "tiktok",
         "instagram"
     ],
-    "history": [],
+    "history": [
+        {
+            "name": "BTS (방탄소년단) 'Save ME' Official MV",
+            "service": "Spotify",
+            "duration": "3:37",
+            "link": "https://open.spotify.com/intl-pt/track/7bxGcILuAjkZzaveU28ZJS?si=3ba490d748a2475c",
+            "path": "D:\\Git\\Paroni-Downloader\\temp\\BTS (방탄소년단) 'Save ME' Official MV - audio.mp3",
+            "timestamp": 1794248541.2078297
+        },
+        {
+            "name": "Ava Max - Sweet but Psycho [Official Music Video]",
+            "service": "Spotify",
+            "duration": "3:27",
+            "link": "https://open.spotify.com/intl-pt/track/7DnAm9FOTWE3cUvso43HhI?si=feff8355ea284a32",
+            "path": "D:\\Git\\Paroni-Downloader\\temp\\Ava Max - Sweet but Psycho [Official Music Video] - audio.mp3",
+            "timestamp": 1794248625.4597235
+        },
+        {
+            "name": "#fy ",
+            "service": "TikTok",
+            "duration": "0:06",
+            "link": "https://www.tiktok.com/@laurasanches1202/video/7697810672222031112?is_from_webapp=1&sender_device=pc",
+            "path": "D:\\Git\\Paroni-Downloader\\temp\\#fy  - video e audio - best_quality.mp4",
+            "timestamp": 1794248794.0434952
+        },
+        {
+            "name": "Video by ozeldo_",
+            "service": "Instagram",
+            "duration": "",
+            "link": "https://www.instagram.com/reel/DffX-H4BS8t/?cplk=MW81dzYycjNjMGNmeQ==",
+            "path": "D:\\Git\\Paroni-Downloader\\temp\\Video by ozeldo_ - video e audio - best_quality.mp4",
+            "timestamp": 1794248856.741324
+        },
+        {
+            "name": "Voltei, amigos | !discord !youtube",
+            "service": "Twitch",
+            "duration": "0:30",
+            "link": "https://www.twitch.tv/marsvolanss/clip/HorribleRacyCatVoHiYo-IAibLw60tnuQ8J8l?range=7d",
+            "path": "D:\\Git\\Paroni-Downloader\\temp\\Voltei, amigos ｜ !discord !youtube - video e audio - best_quality.mp4",
+            "timestamp": 1794249026.987822
+        },
+        {
+            "name": "Shawn Mendes - Mercy (Lyrics)",
+            "service": "Spotify",
+            "duration": "3:29",
+            "link": "https://open.spotify.com/intl-pt/track/0AS63m1wHv9n4VVRizK6Hc?si=c414ee1c9c564d6f",
+            "path": "D:\\Git\\Paroni-Downloader\\temp\\Shawn Mendes - Mercy (Lyrics) - audio.mp3",
+            "timestamp": 1794249833.7876408
+        }
+    ],
     "resizable_window": true,
+    "master_pin": "",
     "port": 3000,
     "bind_address": "0.0.0.0"
 }
